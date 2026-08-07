@@ -1,0 +1,9 @@
+*3.1  O ArgoCD ajuda em qual etapa do processo de GitOps? O que exatamente ele faz?*
+
+O ArgoCD atua na etapa de entrega contínua (CD) dentro do fluxo de GitOps, mais especificamente na parte de reconciliação. Ele não participa do build nem dos testes da aplicação, isso é responsabilidade da ferramenta de CI. O que ele faz é monitorar continuamente um repositório Git onde está declarado o estado desejado da infra/aplicação, comparar esse estado com o que está realmente rodando no cluster, e aplicar automaticamente qualquer diferença encontrada, seja porque o Git mudou ou porque o cluster teve alguma alteração manual. Além disso, ele expõe essa comparação de forma visual, mostrando claramente o que está sincronizado e o que não está.
+
+*3.2  Onde termina a responsabilidade de uma ferramenta de CI (ex.: GitHub Actions, GitLab CI, Jenkins) e onde começa a do ArgoCD? Dê um exemplo do “ponto de entrega” entre as duas.*
+
+A responsabilidade de uma ferramenta de CI termina quando ela entrega um artefato pronto e atualiza a referência desse artefato (geralmente a tag da imagem) em um repositório Git de configuração. A partir daí, quem assume é o ArgoCD: ele detecta a mudança nesse repositório e aplica no cluster. O CI nunca acessa o cluster diretamente, e o ArgoCD nunca builda ou testa código, cada um atua estritamente do seu lado.
+
+Um exemplo real desse "ponto de entrega": no pipeline que usamos na Evolutix, o Jenkins roda a análise de código no SonarQube, que barra o pipeline caso o quality gate não seja atingido, executa os testes e gera o build. Ao final, atualiza a tag da imagem no repositório de manifests. Esse commit de atualização de tag é o ponto exato de entrega. A partir dali, o ArgoCD detecta a mudança e aplica a nova versão no cluster.
