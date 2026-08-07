@@ -1,0 +1,11 @@
+*1.1  O que é GitOps? Explique com suas palavras.*
+
+O GitOps é gerenciar infraestrutura e sistemas direto pelo Git, você deixa a configuração do ambiente salva no repositório como código, e uma ferramenta automatizada (ex: ArgoCD) lê isso e aplica as mudanças no servidor sozinha, garantindo que o ambiente fique exatamente igual ao que tá no código. Isso é importante por conta que gera histórico Git, muito importante para auditorias e reconciliação contínua. 
+
+*1.2  Qual a diferença entre um modelo de deploy push (ex.: um pipeline que roda kubectl apply) e um modelo pull (GitOps)? Que vantagens o modelo pull traz?*
+
+No modelo push, é o pipeline de CI (ex: Github Actions, Codepipeline, etc.) que roda o kubectl apply direto ao cluster, ao final do deploy. Isso significa que o pipeline necessita de credenciais de escrita ao cluster e acesso à rede do cluster para que realize o Deploy. Outro ponto, ninguém fica verificando se o estado do cluster está sincronizado com o que está no repositório git. Se alguém alterar algo manualmente depois (kubectl edit, por exemplo), essa alteração passa despercebida.
+
+No modelo pull (GitOps), quem aplica a mudança é um agente que roda dentro do próprio cluster (ex: ArgoCD), e ele não espera um pipeline externo mudar nada, ele mesmo fica observando o repositório Git e comparando continuamente o estado desejado (o que está no Git) com o estado real do cluster. Se os dois divergem, ele corrige sozinho. Por estar rodando dentro do cluster, o agente não depende de abrir acesso de rede externo (firewall) até o cluster — diferente do push, onde o pipeline, que fica fora, precisa desse acesso.
+
+As principais vantagens do modelo pull são: menos superfície de ataque, já que nenhum sistema externo precisa de credenciais de produção; correção automática de desvios, porque a reconciliação é contínua e não só no momento do deploy; e mais visibilidade, porque dá pra ver claramente a diferença entre o que está definido no Git e o que está rodando de fato.
