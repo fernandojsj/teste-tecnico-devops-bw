@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teste-tecnico-bw-app
+  labels:
+    app: teste-tecnico-bw-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: teste-tecnico-bw-app
+  template:
+    metadata:
+      labels:
+        app: teste-tecnico-bw-app
+    spec:
+      imagePullSecrets:
+        - name: ecr-pull-secret
+      containers:
+        - name: app
+          image: 510724490149.dkr.ecr.us-east-1.amazonaws.com/teste-tecnico-bw-dev:d47390b
+          ports:
+            - containerPort: 80
+          env:
+            - name: APP_ENV
+              value: "dev"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
