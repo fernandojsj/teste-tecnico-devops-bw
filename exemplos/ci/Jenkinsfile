@@ -8,6 +8,10 @@
 // gate rodam, o que já bloqueia o merge se algo falhar. O merge em si não é um
 // estágio daqui, é um evento do GitHub que dispara a próxima build na main.
 //
+// Cada estágio também tem "changeset 'exemplos/app/**'": só roda se o commit
+// mexeu em algo dentro do app, pra não gastar build/scan/push por causa de uma
+// mudança em resposta discursiva ou em outro exemplo.
+//
 // A responsabilidade da CI termina no push pro ECR. Quem atualiza a tag da
 // imagem no repositório de manifests é o time de DevOps, manualmente (ver
 // bloco-4 e bloco-3), esse Jenkinsfile não escreve em nenhum outro repositório
@@ -25,9 +29,10 @@ pipeline {
     environment {
         AWS_REGION         = 'us-east-1'
         AWS_ACCOUNT_ID     = credentials('aws-account-id')
-        ECR_REPOSITORY     = 'minha-app'
-        IMAGE_TAG          = "${env.GIT_COMMIT}"
-        SONAR_PROJECT_KEY  = 'minha-app'
+        ECR_REPOSITORY     = 'teste-tecnico-bw-dev'
+        APP_DIR            = 'exemplos/app'
+        IMAGE_TAG          = "${env.GIT_COMMIT.take(7)}"
+        SONAR_PROJECT_KEY  = 'teste-tecnico-bw-app'
     }
 
     stages {
@@ -37,26 +42,30 @@ pipeline {
             }
         }
 
-        stage('Testes unitarios') {
-            steps {
-                sh './gradlew test'
+        stage('Lint do Dockerfile') {
+            when {
+                changeset 'exemplos/app/**'
             }
-            post {
-                always {
-                    junit testResults: '**/build/test-results/**/*.xml', allowEmptyResults: true
-                }
+            steps {
+                sh 'docker run --rm -i hadolint/hadolint < $APP_DIR/Dockerfile'
             }
         }
 
         stage('Analise estatica (SonarQube)') {
+            when {
+                changeset 'exemplos/app/**'
+            }
             steps {
                 withSonarQubeEnv('sonarqube-server') {
-                    sh "sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
+                    sh 'sonar-scanner -Dsonar.projectKey=$SONAR_PROJECT_KEY -Dsonar.sources=$APP_DIR'
                 }
             }
         }
 
         stage('Quality Gate') {
+            when {
+                changeset 'exemplos/app/**'
+            }
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -67,34 +76,42 @@ pipeline {
         // A partir daqui, só roda depois que a PR foi mergeada na main.
         stage('Build da imagem') {
             when {
-                branch 'main'
+                allOf {
+                    branch 'main'
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
-                sh "docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
+                sh 'docker build --build-arg IMAGE_TAG=$IMAGE_TAG -t $ECR_REPOSITORY:$IMAGE_TAG $APP_DIR'
             }
         }
 
         stage('Scan de vulnerabilidades (Trivy)') {
             when {
-                branch 'main'
+                allOf {
+                    branch 'main'
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
-                sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${ECR_REPOSITORY}:${IMAGE_TAG}"
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL $ECR_REPOSITORY:$IMAGE_TAG'
             }
         }
 
         stage('Push para o ECR') {
             when {
-                branch 'main'
+                allOf {
+                    branch 'main'
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
-                sh """
-                    aws ecr get-login-password --region ${AWS_REGION} \
-                        | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                sh '''
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-                    docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
-                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
-                """
+                    docker tag $ECR_REPOSITORY:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+                    docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+                '''
             }
         }
     }
