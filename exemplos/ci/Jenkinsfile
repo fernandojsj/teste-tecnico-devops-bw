@@ -1,0 +1,110 @@
+// Pipeline de referência para o bloco 4 (respostas/bloco-4-design-de-esteira.md)
+// e o diagrama diagramas/esteira-cicd.drawio.
+//
+// Como funciona com Multibranch Pipeline: o Jenkins roda esse mesmo Jenkinsfile
+// tanto quando uma PR é aberta contra a main (branch != main) quanto depois que
+// a PR é mergeada (branch == main). Por isso os estágios de build/scan/push só
+// rodam com "when { branch 'main' }": numa PR, só testes + SonarQube + quality
+// gate rodam, o que já bloqueia o merge se algo falhar. O merge em si não é um
+// estágio daqui, é um evento do GitHub que dispara a próxima build na main.
+//
+// A responsabilidade da CI termina no push pro ECR. Quem atualiza a tag da
+// imagem no repositório de manifests é o time de DevOps, manualmente (ver
+// bloco-4 e bloco-3), esse Jenkinsfile não escreve em nenhum outro repositório
+// nem tem acesso ao cluster.
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    environment {
+        AWS_REGION         = 'us-east-1'
+        AWS_ACCOUNT_ID     = credentials('aws-account-id')
+        ECR_REPOSITORY     = 'minha-app'
+        IMAGE_TAG          = "${env.GIT_COMMIT}"
+        SONAR_PROJECT_KEY  = 'minha-app'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Testes unitarios') {
+            steps {
+                sh './gradlew test'
+            }
+            post {
+                always {
+                    junit testResults: '**/build/test-results/**/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        stage('Analise estatica (SonarQube)') {
+            steps {
+                withSonarQubeEnv('sonarqube-server') {
+                    sh "sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY}"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        // A partir daqui, só roda depois que a PR foi mergeada na main.
+        stage('Build da imagem') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh "docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Scan de vulnerabilidades (Trivy)') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${ECR_REPOSITORY}:${IMAGE_TAG}"
+            }
+        }
+
+        stage('Push para o ECR') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                        | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+                    docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+                    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "CI concluida, imagem publicada com a tag ${IMAGE_TAG}. Atualizacao do repositorio de manifests fica a cargo do DevOps."
+        }
+        failure {
+            echo "Pipeline falhou, nenhuma imagem foi publicada no ECR."
+        }
+    }
+}
