@@ -12,9 +12,11 @@
 // branch do repositório (dev, main, etc.) e builda cada uma separadamente, com
 // env.BRANCH_NAME correto, o que é o que faz "when { branch 'main' }" funcionar.
 //
-// Cada estágio também tem "changeset 'exemplos/app/**'": só roda se o commit
-// mexeu em algo dentro do app, pra não gastar build/scan/push por causa de uma
-// mudança em resposta discursiva ou em outro exemplo.
+// Cada estágio também exige "changeset 'exemplos/app/**'" (pra não gastar
+// build/scan/push por causa de uma mudança em resposta discursiva ou outro
+// exemplo), com uma excecao: no primeiro build de uma branch nova nao existe
+// build anterior pra comparar, entao "changeset" sempre da falso ali. Por isso
+// o "currentBuild.number == 1" tambem libera o estagio nesse caso.
 //
 // A responsabilidade da CI termina no push pro ECR. Quem atualiza a tag da
 // imagem no repositório de manifests é o time de DevOps, manualmente (ver
@@ -48,7 +50,10 @@ pipeline {
 
         stage('Lint do Dockerfile') {
             when {
-                changeset 'exemplos/app/**'
+                anyOf {
+                    expression { currentBuild.number == 1 }
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
                 sh 'docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < $APP_DIR/Dockerfile'
@@ -57,7 +62,10 @@ pipeline {
 
         stage('Analise estatica (SonarQube)') {
             when {
-                changeset 'exemplos/app/**'
+                anyOf {
+                    expression { currentBuild.number == 1 }
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
                 withSonarQubeEnv('sonarqube-server') {
@@ -68,7 +76,10 @@ pipeline {
 
         stage('Quality Gate') {
             when {
-                changeset 'exemplos/app/**'
+                anyOf {
+                    expression { currentBuild.number == 1 }
+                    changeset 'exemplos/app/**'
+                }
             }
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
@@ -82,7 +93,10 @@ pipeline {
             when {
                 allOf {
                     branch 'main'
-                    changeset 'exemplos/app/**'
+                    anyOf {
+                        expression { currentBuild.number == 1 }
+                        changeset 'exemplos/app/**'
+                    }
                 }
             }
             steps {
@@ -94,7 +108,10 @@ pipeline {
             when {
                 allOf {
                     branch 'main'
-                    changeset 'exemplos/app/**'
+                    anyOf {
+                        expression { currentBuild.number == 1 }
+                        changeset 'exemplos/app/**'
+                    }
                 }
             }
             steps {
@@ -106,7 +123,10 @@ pipeline {
             when {
                 allOf {
                     branch 'main'
-                    changeset 'exemplos/app/**'
+                    anyOf {
+                        expression { currentBuild.number == 1 }
+                        changeset 'exemplos/app/**'
+                    }
                 }
             }
             steps {
