@@ -12,3 +12,12 @@ terraform {
 provider "aws" {
   region = var.aws_region
 }
+
+terraform {
+  backend "s3" {
+    bucket       = "fer-lab-terraform-state"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}
