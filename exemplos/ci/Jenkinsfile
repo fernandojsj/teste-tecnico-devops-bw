@@ -8,10 +8,9 @@
 // rodam, o que já bloqueia o merge se algo falhar. O merge em si não é um
 // estágio daqui, é um evento do GitHub que dispara a próxima build na main.
 //
-// Esse job específico é um Pipeline simples (não Multibranch), então não existe
-// env.BRANCH_NAME; a checagem usa env.GIT_BRANCH (setado pelo checkout scm) em
-// vez de "branch 'main'". Num Multibranch Pipeline de verdade, "branch 'main'"
-// funcionaria direto.
+// Esse job roda como Multibranch Pipeline de verdade: o Jenkins descobre cada
+// branch do repositório (dev, main, etc.) e builda cada uma separadamente, com
+// env.BRANCH_NAME correto, o que é o que faz "when { branch 'main' }" funcionar.
 //
 // Cada estágio também tem "changeset 'exemplos/app/**'": só roda se o commit
 // mexeu em algo dentro do app, pra não gastar build/scan/push por causa de uma
@@ -82,7 +81,7 @@ pipeline {
         stage('Build da imagem') {
             when {
                 allOf {
-                    expression { env.GIT_BRANCH?.endsWith('main') }
+                    branch 'main'
                     changeset 'exemplos/app/**'
                 }
             }
@@ -94,7 +93,7 @@ pipeline {
         stage('Scan de vulnerabilidades (Trivy)') {
             when {
                 allOf {
-                    expression { env.GIT_BRANCH?.endsWith('main') }
+                    branch 'main'
                     changeset 'exemplos/app/**'
                 }
             }
@@ -106,7 +105,7 @@ pipeline {
         stage('Push para o ECR') {
             when {
                 allOf {
-                    expression { env.GIT_BRANCH?.endsWith('main') }
+                    branch 'main'
                     changeset 'exemplos/app/**'
                 }
             }
