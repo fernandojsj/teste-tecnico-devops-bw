@@ -18,7 +18,7 @@ spec:
         - name: ecr-pull-secret
       containers:
         - name: app
-          image: 510724490149.dkr.ecr.us-east-1.amazonaws.com/teste-tecnico-bw-dev:69b574c
+          image: 510724490149.dkr.ecr.us-east-1.amazonaws.com/teste-tecnico-bw-dev:7f563f4
           ports:
             - containerPort: 80
           env:
