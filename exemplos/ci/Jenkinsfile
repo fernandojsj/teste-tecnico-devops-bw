@@ -47,7 +47,7 @@ pipeline {
                 changeset 'exemplos/app/**'
             }
             steps {
-                sh 'docker run --rm -i hadolint/hadolint < $APP_DIR/Dockerfile'
+                sh 'docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < $APP_DIR/Dockerfile'
             }
         }
 
