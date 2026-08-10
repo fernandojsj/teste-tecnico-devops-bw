@@ -33,3 +33,28 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "image_tag_mutability" {
+  description = "MUTABLE ou IMMUTABLE pro repositorio ECR"
+  type        = string
+}
+
+variable "scan_on_push" {
+  description = "Se true, a AWS escaneia a imagem por vulnerabilidades a cada push no ECR"
+  type        = bool
+}
+
+variable "ecr_encryption_type" {
+  description = "Tipo de encriptacao do repositorio ECR (AES256 ou KMS)"
+  type        = string
+}
+
+variable "max_image_count" {
+  description = "Quantidade maxima de imagens mantidas no ECR antes de expirar as mais antigas"
+  type        = number
+}
+
+variable "ecr_force_delete" {
+  description = "Se true, permite apagar o repositorio ECR mesmo com imagens dentro"
+  type        = bool
+}

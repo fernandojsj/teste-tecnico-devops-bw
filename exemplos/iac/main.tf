@@ -17,3 +17,15 @@ module "network" {
   availability_zone  = var.availability_zone
   tags               = local.tags
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  repository_name      = local.name_prefix
+  image_tag_mutability = var.image_tag_mutability
+  scan_on_push         = var.scan_on_push
+  encryption_type      = var.ecr_encryption_type
+  max_image_count      = var.max_image_count
+  force_delete         = var.ecr_force_delete
+  tags                 = local.tags
+}

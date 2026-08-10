@@ -8,3 +8,9 @@ availability_zone  = "us-east-1a"
 common_tags = {
   Owner = "fernando"
 }
+
+image_tag_mutability = "IMMUTABLE"
+scan_on_push         = true
+ecr_encryption_type  = "AES256"
+max_image_count      = 20
+ecr_force_delete     = false
