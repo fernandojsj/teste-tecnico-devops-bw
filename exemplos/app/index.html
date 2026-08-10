@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <title>teste-tecnico-bw</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    .card {
+      text-align: center;
+      padding: 3rem 4rem;
+      border-radius: 1rem;
+      background: #1e293b;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .env {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #38bdf8;
+      margin: 0 0 0.5rem 0;
+    }
+    .meta {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      margin-top: 1.5rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <p class="meta">Ambiente</p>
+    <p class="env">${APP_ENV}</p>
+    <p class="meta">
+      pod: ${HOSTNAME}<br />
+      imagem: ${IMAGE_TAG}
+    </p>
+  </div>
+</body>
+</html>
