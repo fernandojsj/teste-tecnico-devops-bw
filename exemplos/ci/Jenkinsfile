@@ -4,9 +4,14 @@
 // Como funciona com Multibranch Pipeline: o Jenkins roda esse mesmo Jenkinsfile
 // tanto quando uma PR é aberta contra a main (branch != main) quanto depois que
 // a PR é mergeada (branch == main). Por isso os estágios de build/scan/push só
-// rodam com "when { branch 'main' }": numa PR, só testes + SonarQube + quality
-// gate rodam, o que já bloqueia o merge se algo falhar. O merge em si não é um
+// rodam quando a branch é a main: numa PR, só testes + SonarQube + quality gate
+// rodam, o que já bloqueia o merge se algo falhar. O merge em si não é um
 // estágio daqui, é um evento do GitHub que dispara a próxima build na main.
+//
+// Esse job específico é um Pipeline simples (não Multibranch), então não existe
+// env.BRANCH_NAME; a checagem usa env.GIT_BRANCH (setado pelo checkout scm) em
+// vez de "branch 'main'". Num Multibranch Pipeline de verdade, "branch 'main'"
+// funcionaria direto.
 //
 // Cada estágio também tem "changeset 'exemplos/app/**'": só roda se o commit
 // mexeu em algo dentro do app, pra não gastar build/scan/push por causa de uma
@@ -77,7 +82,7 @@ pipeline {
         stage('Build da imagem') {
             when {
                 allOf {
-                    branch 'main'
+                    expression { env.GIT_BRANCH?.endsWith('main') }
                     changeset 'exemplos/app/**'
                 }
             }
@@ -89,7 +94,7 @@ pipeline {
         stage('Scan de vulnerabilidades (Trivy)') {
             when {
                 allOf {
-                    branch 'main'
+                    expression { env.GIT_BRANCH?.endsWith('main') }
                     changeset 'exemplos/app/**'
                 }
             }
@@ -101,7 +106,7 @@ pipeline {
         stage('Push para o ECR') {
             when {
                 allOf {
-                    branch 'main'
+                    expression { env.GIT_BRANCH?.endsWith('main') }
                     changeset 'exemplos/app/**'
                 }
             }
